@@ -1654,21 +1654,21 @@ public class ColumnStatisticsImpl implements ColumnStatistics {
         maximum = DateUtils.convertTime(
             SerializationUtils.convertToUtc(TimeZone.getDefault(),
                timestampStats.getMaximum()),
-            writerUsedProlepticGregorian, convertToProlepticGregorian);
+            writerUsedProlepticGregorian, convertToProlepticGregorian, true);
       }
       if (timestampStats.hasMinimum()) {
         minimum = DateUtils.convertTime(
             SerializationUtils.convertToUtc(TimeZone.getDefault(),
                 timestampStats.getMinimum()),
-            writerUsedProlepticGregorian, convertToProlepticGregorian);
+            writerUsedProlepticGregorian, convertToProlepticGregorian, true);
       }
       if (timestampStats.hasMaximumUtc()) {
         maximum = DateUtils.convertTime(timestampStats.getMaximumUtc(),
-            writerUsedProlepticGregorian, convertToProlepticGregorian);
+            writerUsedProlepticGregorian, convertToProlepticGregorian, true);
       }
       if (timestampStats.hasMinimumUtc()) {
         minimum = DateUtils.convertTime(timestampStats.getMinimumUtc(),
-            writerUsedProlepticGregorian, convertToProlepticGregorian);
+            writerUsedProlepticGregorian, convertToProlepticGregorian, true);
       }
     }
 
@@ -2023,13 +2023,6 @@ public class ColumnStatisticsImpl implements ColumnStatistics {
   public static ColumnStatisticsImpl deserialize(TypeDescription schema,
                                                  OrcProto.ColumnStatistics stats) {
     return deserialize(schema, stats, false, false);
-  }
-
-  public static ColumnStatisticsImpl deserialize(TypeDescription schema,
-                                                 OrcProto.ColumnStatistics stats,
-                                                 ReaderImpl reader) {
-    return deserialize(schema, stats, reader.writerUsedProlepticGregorian(),
-        reader.options.getConvertToProlepticGregorian());
   }
 
   public static ColumnStatisticsImpl deserialize(TypeDescription schema,

@@ -567,15 +567,18 @@ namespace orc {
     RleVersion rleVersion = convertRleVersion(stripe.getEncoding(columnId)
                                                 .kind());
     uint32_t dictSize = stripe.getEncoding(columnId).dictionarysize();
-    rle = createRleDecoder(stripe.getStream(columnId,
-                                            proto::Stream_Kind_DATA,
-                                            true),
-                           false, rleVersion, memoryPool);
+    std::unique_ptr<SeekableInputStream> stream =
+        stripe.getStream(columnId, proto::Stream_Kind_DATA, true);
+    if (stream == nullptr) {
+      throw ParseError("DATA stream not found in StringDictionaryColumn");
+    }
+    rle = createRleDecoder(std::move(stream), false, rleVersion, memoryPool);
+    stream = stripe.getStream(columnId, proto::Stream_Kind_LENGTH, false);
+    if (dictSize > 0 && stream == nullptr) {
+      throw ParseError("LENGTH stream not found in StringDictionaryColumn");
+    }
     std::unique_ptr<RleDecoder> lengthDecoder =
-            createRleDecoder(stripe.getStream(columnId,
-                                        proto::Stream_Kind_LENGTH,
-                                        false),
-                       false, rleVersion, memoryPool);
+        createRleDecoder(std::move(stream), false, rleVersion, memoryPool);
     dictionary->dictionaryOffset.resize(dictSize + 1);
     int64_t* lengthArray = dictionary->dictionaryOffset.data();
     lengthDecoder->next(lengthArray + 1, dictSize, nullptr);
@@ -586,14 +589,15 @@ namespace orc {
       }
       lengthArray[i] += lengthArray[i - 1];
     }
-    dictionary->dictionaryBlob.resize(
-                                static_cast<uint64_t>(lengthArray[dictSize]));
+    int64_t blobSize = lengthArray[dictSize];
+    dictionary->dictionaryBlob.resize(static_cast<uint64_t>(blobSize));
     std::unique_ptr<SeekableInputStream> blobStream =
       stripe.getStream(columnId, proto::Stream_Kind_DICTIONARY_DATA, false);
-    readFully(
-              dictionary->dictionaryBlob.data(),
-              lengthArray[dictSize],
-              blobStream.get());
+    if (blobSize > 0 && blobStream == nullptr) {
+      throw ParseError(
+          "DICTIONARY_DATA stream not found in StringDictionaryColumn");
+    }
+    readFully(dictionary->dictionaryBlob.data(), blobSize, blobStream.get());
   }
 
   StringDictionaryColumnReader::~StringDictionaryColumnReader() {
